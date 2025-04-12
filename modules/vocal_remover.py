@@ -1,9 +1,10 @@
 import os
 import warnings
-warnings.filterwarnings('ignore')
 from spleeter.separator import Separator
 
+
 def remove_vocals(working_dir):
+    warnings.filterwarnings('ignore')
     separator = Separator('spleeter:2stems')
     audio_input = os.path.abspath(working_dir+"/original.mp3")
     audio_output = os.path.abspath(working_dir+"/")
