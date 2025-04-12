@@ -1,4 +1,6 @@
 import os
+import warnings
+warnings.filterwarnings('ignore')
 from spleeter.separator import Separator
 
 def remove_vocals(working_dir):
