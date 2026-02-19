@@ -1,0 +1,75 @@
+services:
+  # ── Next.js frontend ────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ./karaoke_web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      YOUTUBE_SEARCH_URL: http://youtube-search:8001
+      MP3_DOWNLOAD_URL: http://mp3-download:8002
+      KARAOKE_URL: http://karaoke-driver:8003
+    depends_on:
+      youtube-search:
+        condition: service_healthy
+      mp3-download:
+        condition: service_healthy
+      karaoke-driver:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── YouTube search service ───────────────────────────────────────────────────
+  youtube-search:
+    build:
+      context: ./karaoke_utils/youtube_search
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── MP3 download service ─────────────────────────────────────────────────────
+  mp3-download:
+    build:
+      context: ./karaoke_utils/download_mp3
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    volumes:
+      - mp3_tmp:/tmp
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Karaoke driver service ───────────────────────────────────────────────────
+  karaoke-driver:
+    build:
+      context: ./karaoke_utils/karaoke_driver
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8003"
+    volumes:
+      - karaoke_tmp:/tmp
+      - model_cache:/root/.cache  # cache demucs/torch model weights
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  mp3_tmp:
+  karaoke_tmp:
+  model_cache:

@@ -1,20 +1,38 @@
-# from pytube import YouTube
-from pytubefix import YouTube
-from pytubefix.cli import on_progress
+import logging
 import os
+import subprocess
+
+logger = logging.getLogger(__name__)
 
 
-def get_video_title(link):
-    youtubeObject = YouTube(link,on_progress_callback=on_progress)
-    return youtubeObject.title
+def get_video_title(link: str) -> str:
+    result = subprocess.run(
+        ["yt-dlp", "--print", "%(title)s", "--no-playlist", link],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
 
-def download_youtube_video(link,tmp_dir):
-    youtubeObject = YouTube(link,on_progress_callback=on_progress)
-    
-    youtubeObject = youtubeObject.streams.get_highest_resolution()
-    try:
-        youtubeObject.download(output_path=tmp_dir)
-        os.system(f"cd {tmp_dir} && mv * raw.mp4")
-    except:
-        print("An error has occurred")
-    print("Download is completed successfully")
+
+def download_audio_only(link: str, tmp_dir: str) -> None:
+    """Download audio as original.mp3 — same proven approach as the mp3-download service."""
+    output_path = os.path.join(tmp_dir, "original.mp3")
+    result = subprocess.run(
+        [
+            "yt-dlp",
+            "-f", "bestaudio/best",
+            "-x",
+            "--audio-format", "mp3",
+            "--audio-quality", "0",
+            "--no-playlist",
+            "-o", output_path,
+            link,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        logger.error("yt-dlp stderr:\n%s", result.stderr[-2000:])
+        raise RuntimeError(f"yt-dlp audio download failed: {result.stderr[-500:]}")
+    logger.info("Downloaded audio to %s", output_path)

@@ -1,23 +1,29 @@
-from moviepy.editor import VideoFileClip, AudioFileClip
+import logging
+import os
+import subprocess
+
+logger = logging.getLogger(__name__)
 
 
-def extract_audio_from_video(video_path):
-    video_clip = VideoFileClip(video_path+"/raw.mp4")
-    audio_clip = video_clip.audio
-
-    audio_clip.write_audiofile(video_path+"/original.mp3", codec='mp3')
-    video_clip.close()
-    print(f"Audio extracted successfully.")
-
-def add_audio_to_video(working_dir):
-    # Load video clip
-    video_clip = VideoFileClip(working_dir+"/raw.mp4")
-
-    # Load audio clip
-    audio_clip = AudioFileClip(working_dir+"/final.mp3")
-
-    # Set the audio of the video clip to the loaded audio clip
-    video_clip = video_clip.set_audio(audio_clip)
-
-    # Write the result to a new file
-    video_clip.write_videofile(working_dir+"/final.mp4", codec="libx264", audio_codec="mp3")
+def create_karaoke_video(working_dir: str) -> None:
+    """Create karaoke MP4: dark background + accompaniment audio, using ffmpeg only."""
+    audio_path = os.path.join(working_dir, "final.mp3")
+    output_path = os.path.join(working_dir, "final.mp4")
+    result = subprocess.run(
+        [
+            "ffmpeg", "-y",
+            # Dark navy background, no video source needed
+            "-f", "lavfi", "-i", "color=c=0x0d0d2b:s=1280x720:r=25",
+            "-i", audio_path,
+            "-shortest",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "28",
+            "-c:a", "aac", "-b:a", "192k",
+            output_path,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        logger.error("ffmpeg stderr:\n%s", result.stderr[-1000:])
+        raise RuntimeError(f"ffmpeg failed: {result.stderr[-300:]}")
+    logger.info("Karaoke video written to %s", output_path)
