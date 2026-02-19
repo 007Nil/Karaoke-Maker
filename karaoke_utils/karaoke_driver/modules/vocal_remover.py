@@ -15,6 +15,7 @@ def remove_vocals(working_dir: str) -> None:
         [
             "demucs",
             "--two-stems=vocals",
+            "--device", "cpu",
             "-o", stems_dir,
             audio_input,
         ],
@@ -22,8 +23,12 @@ def remove_vocals(working_dir: str) -> None:
         text=True,
     )
     if result.returncode != 0:
-        logger.error("demucs stderr:\n%s", result.stderr[-2000:])
-        raise RuntimeError(f"demucs failed: {result.stderr[-500:]}")
+        logger.error("demucs failed (rc=%d)\nstdout:\n%s\nstderr:\n%s",
+                     result.returncode, result.stdout[-2000:], result.stderr[-2000:])
+        raise RuntimeError(
+            f"demucs failed (rc={result.returncode}): "
+            f"{(result.stderr or result.stdout)[-500:] or 'no output'}"
+        )
 
     # demucs outputs: stems/<model>/original/no_vocals.wav
     no_vocals = next(Path(stems_dir).glob("*/original/no_vocals.wav"), None)
