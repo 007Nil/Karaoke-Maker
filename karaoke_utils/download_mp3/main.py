@@ -63,7 +63,10 @@ def _run_download(job_id: str, video_url: str, output_path: str) -> None:
 def download(req: DownloadRequest, background_tasks: BackgroundTasks):
     job_id = uuid.uuid4().hex
     tmp_dir = tempfile.mkdtemp(prefix="mp3_")
-    output_path = os.path.join(tmp_dir, f"{job_id}.mp3")
+    # Pass a template WITHOUT extension so yt-dlp appends .mp3 cleanly after
+    # audio extraction; avoid ambiguity when the template itself ends in .mp3.
+    output_template = os.path.join(tmp_dir, job_id)
+    output_path = f"{output_template}.mp3"
     with _lock:
         _jobs[job_id] = {
             "status": "queued",
@@ -71,7 +74,7 @@ def download(req: DownloadRequest, background_tasks: BackgroundTasks):
             "progress_message": "Job queued…",
             "error": None,
         }
-    background_tasks.add_task(_run_download, job_id, req.video_url, output_path)
+    background_tasks.add_task(_run_download, job_id, req.video_url, output_template)
     return {"job_id": job_id}
 
 

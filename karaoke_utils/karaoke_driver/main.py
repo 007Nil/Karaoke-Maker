@@ -25,9 +25,12 @@ class KaraokeRequest(BaseModel):
 
 def _run_pipeline(job_id: str, video_url: str, tmp_dir: str) -> None:
     try:
-        store.update(job_id, status=JobStatus.DOWNLOADING, progress_message="Downloading audio…")
+        store.update(job_id, status=JobStatus.DOWNLOADING, progress_message="Downloading video…")
         video_title = ytube.get_video_title(video_url)
-        ytube.download_audio_only(video_url, tmp_dir)
+        ytube.download_video(video_url, tmp_dir)
+
+        store.update(job_id, status=JobStatus.EXTRACTING, progress_message="Extracting audio…")
+        ytube.extract_audio(tmp_dir)
 
         store.update(job_id, status=JobStatus.SEPARATING, progress_message="Removing vocals (this takes a while)…")
         vr.remove_vocals(tmp_dir)
