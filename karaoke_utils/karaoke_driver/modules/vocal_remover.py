@@ -4,6 +4,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import torch
+
 logger = logging.getLogger(__name__)
 
 
@@ -11,11 +13,14 @@ def remove_vocals(working_dir: str) -> None:
     audio_input = os.path.abspath(os.path.join(working_dir, "original.mp3"))
     stems_dir = os.path.join(working_dir, "stems")
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    logger.info("Running demucs on device: %s", device)
+
     result = subprocess.run(
         [
             "demucs",
             "--two-stems=vocals",
-            "--device", "cpu",
+            "--device", device,
             "-o", stems_dir,
             audio_input,
         ],
