@@ -27,6 +27,7 @@ def _run_download(job_id: str, video_url: str, output_path: str) -> None:
     with _lock:
         _jobs[job_id]["status"] = "downloading"
         _jobs[job_id]["progress_message"] = "Downloading audio…"
+    logger.info("Job %s: starting yt-dlp for %s", job_id, video_url)
     try:
         result = subprocess.run(
             [
@@ -42,16 +43,19 @@ def _run_download(job_id: str, video_url: str, output_path: str) -> None:
             capture_output=True,
             text=True,
         )
+        logger.info("Job %s: yt-dlp rc=%d", job_id, result.returncode)
         if result.returncode != 0:
-            logger.error("yt-dlp stderr:\n%s", result.stderr[-2000:])
+            err = result.stderr[-500:] or result.stdout[-500:] or "yt-dlp failed with no output"
+            logger.error("Job %s: yt-dlp failed\nstdout: %s\nstderr: %s",
+                         job_id, result.stdout[-2000:], result.stderr[-2000:])
             with _lock:
                 _jobs[job_id]["status"] = "error"
-                _jobs[job_id]["error"] = result.stderr[-500:] if result.stderr else "yt-dlp failed"
+                _jobs[job_id]["error"] = err
             return
         with _lock:
             _jobs[job_id]["status"] = "done"
             _jobs[job_id]["progress_message"] = "MP3 ready"
-        logger.info("MP3 download complete: %s", output_path)
+        logger.info("Job %s: MP3 download complete → %s.mp3", job_id, output_path)
     except Exception as e:
         logger.exception("MP3 download failed for job %s", job_id)
         with _lock:

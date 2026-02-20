@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 const MP3_DOWNLOAD_URL = process.env.MP3_DOWNLOAD_URL ?? "http://localhost:8002";
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const { id } = params;
   try {
     const upstream = await fetch(`${MP3_DOWNLOAD_URL}/status/${id}`, {
       cache: "no-store",
