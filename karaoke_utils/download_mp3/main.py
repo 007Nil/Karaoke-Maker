@@ -1,5 +1,7 @@
 import logging
 import os
+import re
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -19,8 +21,14 @@ _jobs: dict[str, dict] = {}
 _lock = threading.Lock()
 
 
+def _safe_filename(title: str) -> str:
+    """Strip filesystem-unsafe characters and truncate."""
+    return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", title).strip()[:200]
+
+
 class DownloadRequest(BaseModel):
     video_url: str
+    video_title: str = ""
 
 
 def _run_download(job_id: str, video_url: str, output_path: str) -> None:
@@ -67,9 +75,8 @@ def _run_download(job_id: str, video_url: str, output_path: str) -> None:
 def download(req: DownloadRequest, background_tasks: BackgroundTasks):
     job_id = uuid.uuid4().hex
     tmp_dir = tempfile.mkdtemp(prefix="mp3_")
-    # Pass a template WITHOUT extension so yt-dlp appends .mp3 cleanly after
-    # audio extraction; avoid ambiguity when the template itself ends in .mp3.
-    output_template = os.path.join(tmp_dir, job_id)
+    safe_title = _safe_filename(req.video_title) if req.video_title else job_id
+    output_template = os.path.join(tmp_dir, safe_title)
     output_path = f"{output_template}.mp3"
     with _lock:
         _jobs[job_id] = {
@@ -116,6 +123,41 @@ def get_file(job_id: str):
         media_type="audio/mpeg",
         filename=Path(file_path).name,
     )
+
+
+class SaveRequest(BaseModel):
+    sub_path: str
+
+
+@app.post("/save/{job_id}")
+def save_file(job_id: str, req: SaveRequest):
+    output_dir = os.environ.get("OUTPUT_DIR")
+    if not output_dir:
+        raise HTTPException(status_code=400, detail="OUTPUT_DIR not configured on server")
+
+    with _lock:
+        job = _jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job["status"] == "error":
+        raise HTTPException(status_code=500, detail=job["error"])
+    if job["status"] != "done" or not job["path"]:
+        raise HTTPException(status_code=409, detail="File not ready yet")
+
+    src = job["path"]
+    if not os.path.isfile(src):
+        raise HTTPException(status_code=404, detail="Source file missing on disk")
+
+    # Prevent path traversal outside OUTPUT_DIR
+    dest_dir = os.path.realpath(os.path.join(output_dir, req.sub_path))
+    if not dest_dir.startswith(os.path.realpath(output_dir)):
+        raise HTTPException(status_code=400, detail="Invalid path: must be within OUTPUT_DIR")
+
+    os.makedirs(dest_dir, exist_ok=True)
+    dest = os.path.join(dest_dir, os.path.basename(src))
+    shutil.copy2(src, dest)
+    logger.info("Job %s: saved to %s", job_id, dest)
+    return {"saved_to": dest}
 
 
 @app.get("/health")

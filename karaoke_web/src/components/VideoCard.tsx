@@ -13,9 +13,10 @@ import { VideoPlayerModal } from "./VideoPlayerModal";
 
 interface VideoCardProps {
   video: VideoResult;
+  karaokeEnabled?: boolean;
 }
 
-export function VideoCard({ video }: VideoCardProps) {
+export function VideoCard({ video, karaokeEnabled = true }: VideoCardProps) {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [karaokeJobId, setKaraokeJobId] = useState<string | null>(null);
   const [karaokeOpen, setKaraokeOpen] = useState(false);
@@ -26,7 +27,7 @@ export function VideoCard({ video }: VideoCardProps) {
   async function handleMp3() {
     setMp3Loading(true);
     try {
-      const { job_id } = await startMp3Download(video.link);
+      const { job_id } = await startMp3Download(video.link, video.title);
       setMp3JobId(job_id);
       setMp3Open(true);
     } catch (err) {
@@ -110,14 +111,16 @@ export function VideoCard({ video }: VideoCardProps) {
             <Download className="h-3.5 w-3.5" />
             {mp3Loading ? "…" : "MP3"}
           </Button>
-          <Button
-            size="sm"
-            className="flex-1"
-            onClick={handleKaraoke}
-          >
-            <Music className="h-3.5 w-3.5" />
-            Karaoke
-          </Button>
+          {karaokeEnabled && (
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={handleKaraoke}
+            >
+              <Music className="h-3.5 w-3.5" />
+              Karaoke
+            </Button>
+          )}
         </CardFooter>
       </Card>
 

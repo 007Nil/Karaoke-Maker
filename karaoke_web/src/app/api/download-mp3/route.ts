@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const upstream = await fetch(`${MP3_DOWNLOAD_URL}/download`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video_url: body.video_url }),
+      body: JSON.stringify({ video_url: body.video_url, video_title: body.video_title ?? "" }),
     });
 
     const data = await upstream.json();
