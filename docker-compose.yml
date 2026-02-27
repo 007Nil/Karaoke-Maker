@@ -10,6 +10,8 @@ services:
       YOUTUBE_SEARCH_URL: http://youtube-search:8001
       MP3_DOWNLOAD_URL: http://mp3-download:8002
       KARAOKE_URL: http://karaoke-driver:8003
+      KARAOKE_ENABLED: "true"   # set to "false" to hide Karaoke button (e.g. unsupported CPU)
+      OUTPUT_DIR: /home/sagniks/        # base dir for "save to server" downloads
     depends_on:
       youtube-search:
         condition: service_healthy
@@ -41,8 +43,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8002:8002"
+    environment:
+      OUTPUT_DIR: /output
     volumes:
       - mp3_tmp:/tmp
+      - /home/sagniks/karaoke-output:/output  # files saved here on the host
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
       interval: 10s
@@ -58,9 +63,12 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8003:8003"
+    environment:
+      OUTPUT_DIR: /output
     volumes:
       - karaoke_tmp:/tmp
       - model_cache:/root/.cache  # cache demucs/torch model weights
+      - /home/sagniks/karaoke-output:/output  # files saved here on the host
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
       interval: 10s

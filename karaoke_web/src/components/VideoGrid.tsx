@@ -11,6 +11,7 @@ interface VideoGridProps {
   videos: VideoResult[];
   page: number;
   onPageChange: (page: number) => void;
+  karaokeEnabled?: boolean;
 }
 
 // Skeleton card shown while loading
@@ -41,7 +42,7 @@ export function VideoGridSkeleton() {
   );
 }
 
-export function VideoGrid({ videos, page, onPageChange }: VideoGridProps) {
+export function VideoGrid({ videos, page, onPageChange, karaokeEnabled = true }: VideoGridProps) {
   const totalPages = Math.ceil(videos.length / PAGE_SIZE);
   const start = (page - 1) * PAGE_SIZE;
   const pageVideos = videos.slice(start, start + PAGE_SIZE);
@@ -52,7 +53,7 @@ export function VideoGrid({ videos, page, onPageChange }: VideoGridProps) {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {pageVideos.map((v) => (
-          <VideoCard key={v.id} video={v} />
+          <VideoCard key={v.id} video={v} karaokeEnabled={karaokeEnabled} />
         ))}
       </div>
 

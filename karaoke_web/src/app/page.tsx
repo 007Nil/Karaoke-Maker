@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Music2 } from "lucide-react";
-import { searchVideos } from "@/lib/api";
+import { getConfig, searchVideos } from "@/lib/api";
 import type { VideoResult } from "@/lib/types";
 import { SearchBar } from "@/components/SearchBar";
 import { VideoGrid, VideoGridSkeleton } from "@/components/VideoGrid";
@@ -13,6 +13,11 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasSearched, setHasSearched] = useState(false);
+  const [karaokeEnabled, setKaraokeEnabled] = useState(true);
+
+  useEffect(() => {
+    getConfig().then((cfg) => setKaraokeEnabled(cfg.karaokeEnabled)).catch(() => {});
+  }, []);
 
   async function handleSearch(query: string) {
     setLoading(true);
@@ -75,7 +80,7 @@ export default function HomePage() {
         )}
 
         {!loading && videos.length > 0 && (
-          <VideoGrid videos={videos} page={page} onPageChange={setPage} />
+          <VideoGrid videos={videos} page={page} onPageChange={setPage} karaokeEnabled={karaokeEnabled} />
         )}
       </div>
     </main>

@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 import tempfile
 import uuid
 
@@ -110,6 +111,45 @@ def get_mp3(job_id: str):
         media_type="audio/mpeg",
         filename=mp3_filename,
     )
+
+
+class SaveRequest(BaseModel):
+    sub_path: str
+    file_type: str  # "mp4" or "mp3"
+
+
+@app.post("/save/{job_id}")
+def save_file(job_id: str, req: SaveRequest):
+    output_dir = os.environ.get("OUTPUT_DIR")
+    if not output_dir:
+        raise HTTPException(status_code=400, detail="OUTPUT_DIR not configured on server")
+
+    job = store.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status == JobStatus.ERROR:
+        raise HTTPException(status_code=500, detail=job.error)
+    if job.status != JobStatus.DONE or not job.output_path:
+        raise HTTPException(status_code=409, detail="File not ready yet")
+
+    if req.file_type == "mp3":
+        src = os.path.join(os.path.dirname(job.output_path), "final.mp3")
+    else:
+        src = job.output_path
+
+    if not os.path.isfile(src):
+        raise HTTPException(status_code=404, detail="Source file missing on disk")
+
+    # Prevent path traversal outside OUTPUT_DIR
+    dest_dir = os.path.realpath(os.path.join(output_dir, req.sub_path))
+    if not dest_dir.startswith(os.path.realpath(output_dir)):
+        raise HTTPException(status_code=400, detail="Invalid path: must be within OUTPUT_DIR")
+
+    os.makedirs(dest_dir, exist_ok=True)
+    dest = os.path.join(dest_dir, os.path.basename(src))
+    shutil.copy2(src, dest)
+    logger.info("Job %s: saved to %s", job_id, dest)
+    return {"saved_to": dest}
 
 
 @app.get("/health")

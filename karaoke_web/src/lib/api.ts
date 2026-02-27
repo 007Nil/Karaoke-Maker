@@ -7,11 +7,11 @@ export async function searchVideos(query: string): Promise<VideoResult[]> {
   return data.results as VideoResult[];
 }
 
-export async function startMp3Download(videoUrl: string): Promise<{ job_id: string }> {
+export async function startMp3Download(videoUrl: string, videoTitle?: string): Promise<{ job_id: string }> {
   const res = await fetch("/api/download-mp3", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ video_url: videoUrl }),
+    body: JSON.stringify({ video_url: videoUrl, video_title: videoTitle ?? "" }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -42,5 +42,28 @@ export async function pollJobStatus(jobId: string): Promise<JobStatusResponse> {
 export async function pollMp3Status(jobId: string): Promise<JobStatusResponse> {
   const res = await fetch(`/api/mp3-status/${jobId}`);
   if (!res.ok) throw new Error("Failed to fetch MP3 job status");
+  return res.json();
+}
+
+export async function getConfig(): Promise<{ karaokeEnabled: boolean; outputDir: string | null }> {
+  const res = await fetch("/api/config");
+  if (!res.ok) throw new Error("Failed to fetch config");
+  return res.json();
+}
+
+export async function saveToServer(
+  jobId: string,
+  type: "karaoke" | "karaoke-mp3" | "mp3",
+  subPath: string,
+): Promise<{ saved_to: string }> {
+  const res = await fetch("/api/save-to-server", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ job_id: jobId, type, sub_path: subPath }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? "Save to server failed");
+  }
   return res.json();
 }

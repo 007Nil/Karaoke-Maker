@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
-import { pollJobStatus, pollMp3Status } from "@/lib/api";
+import { Check, Download, Loader2, Save, X } from "lucide-react";
+import { pollJobStatus, pollMp3Status, saveToServer } from "@/lib/api";
 import type { JobStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,109 @@ interface KaraokeStatusModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode?: "karaoke" | "mp3";
+}
+
+// Inline save-to-server form for a single file type
+function SaveToServerForm({
+  jobId,
+  type,
+}: {
+  jobId: string;
+  type: "karaoke" | "karaoke-mp3" | "mp3";
+}) {
+  const [subPath, setSubPath] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedTo, setSavedTo] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setSavedTo(null);
+    setSaveError(null);
+    try {
+      const result = await saveToServer(jobId, type, subPath);
+      setSavedTo(result.saved_to);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (savedTo) {
+    return (
+      <div className="flex items-start gap-2 text-sm text-green-500 bg-green-500/10 rounded-md p-2">
+        <Check className="h-4 w-4 shrink-0 mt-0.5" />
+        <span className="break-all font-mono text-xs">Saved to: {savedTo}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs text-muted-foreground">
+        Sub-folder within the server output directory (leave blank to save in root):
+      </p>
+      <div className="flex items-center gap-1">
+        <Input
+          className="h-7 text-xs font-mono"
+          placeholder="e.g. karaoke-songs/"
+          value={subPath}
+          onChange={(e) => setSubPath(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !saving && handleSave()}
+        />
+        <Button size="sm" className="h-7 px-2 shrink-0" onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+        </Button>
+      </div>
+      {saveError && (
+        <div className="flex items-center gap-1.5 text-xs text-destructive">
+          <X className="h-3.5 w-3.5 shrink-0" />
+          {saveError}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One downloadable file row: download to computer + save to server
+function DownloadRow({
+  label,
+  href,
+  jobId,
+  type,
+  variant = "default",
+}: {
+  label: string;
+  href: string;
+  jobId: string;
+  type: "karaoke" | "karaoke-mp3" | "mp3";
+  variant?: "default" | "outline";
+}) {
+  const [showSave, setShowSave] = useState(false);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <Button className="flex-1" variant={variant} asChild>
+          <a href={href} download>
+            <Download className="h-4 w-4 mr-2" />
+            {label}
+          </a>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => setShowSave((v) => !v)}
+          title="Save to server path"
+        >
+          <Save className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {showSave && <SaveToServerForm jobId={jobId} type={type} />}
+    </div>
+  );
 }
 
 export function KaraokeStatusModal({
@@ -109,29 +213,30 @@ export function KaraokeStatusModal({
           </div>
 
           {isDone && mode === "karaoke" && (
-            <div className="flex flex-col gap-2">
-              <Button className="w-full" asChild>
-                <a href={`/api/download?job_id=${jobId}&type=karaoke`} download>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Karaoke MP4
-                </a>
-              </Button>
-              <Button variant="outline" className="w-full" asChild>
-                <a href={`/api/download?job_id=${jobId}&type=karaoke-mp3`} download>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Karaoke MP3
-                </a>
-              </Button>
+            <div className="flex flex-col gap-3">
+              <DownloadRow
+                label="Download Karaoke MP4"
+                href={`/api/download?job_id=${jobId}&type=karaoke`}
+                jobId={jobId}
+                type="karaoke"
+              />
+              <DownloadRow
+                label="Download Karaoke MP3"
+                href={`/api/download?job_id=${jobId}&type=karaoke-mp3`}
+                jobId={jobId}
+                type="karaoke-mp3"
+                variant="outline"
+              />
             </div>
           )}
 
           {isDone && mode === "mp3" && (
-            <Button className="w-full" asChild>
-              <a href={`/api/download?job_id=${jobId}&type=mp3`} download>
-                <Download className="h-4 w-4 mr-2" />
-                Download MP3
-              </a>
-            </Button>
+            <DownloadRow
+              label="Download MP3"
+              href={`/api/download?job_id=${jobId}&type=mp3`}
+              jobId={jobId}
+              type="mp3"
+            />
           )}
         </div>
       </DialogContent>
