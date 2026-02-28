@@ -44,6 +44,9 @@ def _run_download(job_id: str, video_url: str, output_path: str) -> None:
                 "-x",
                 "--audio-format", "mp3",
                 "--audio-quality", "0",
+                "--embed-thumbnail",        # embed YouTube thumbnail as album art
+                "--convert-thumbnails", "jpg",  # convert WebP → JPEG before embedding
+                "--embed-metadata",     # write ID3 tags (title, artist, album, etc.)
                 "--no-playlist",
                 "-o", output_path,
                 video_url,
