@@ -44,9 +44,10 @@ def _run_download(job_id: str, video_url: str, output_path: str) -> None:
                 "-x",
                 "--audio-format", "mp3",
                 "--audio-quality", "0",
-                "--embed-thumbnail",        # embed YouTube thumbnail as album art
-                "--convert-thumbnails", "jpg",  # convert WebP → JPEG before embedding
-                "--embed-metadata",     # write ID3 tags (title, artist, album, etc.)
+                "--embed-thumbnail",           # embed YouTube thumbnail as album art
+                "--convert-thumbnails", "jpg", # convert WebP → JPEG before embedding
+                "--embed-metadata",            # write ID3 tags (title, artist, album, etc.)
+                "--parse-metadata", "%(uploader)s:%(artist)s",  # map channel name → Artist tag
                 "--no-playlist",
                 "-o", output_path,
                 video_url,
@@ -54,11 +55,10 @@ def _run_download(job_id: str, video_url: str, output_path: str) -> None:
             capture_output=True,
             text=True,
         )
-        logger.info("Job %s: yt-dlp rc=%d", job_id, result.returncode)
+        logger.info("Job %s: yt-dlp rc=%d\nstdout: %s\nstderr: %s",
+                    job_id, result.returncode, result.stdout[-3000:], result.stderr[-3000:])
         if result.returncode != 0:
             err = result.stderr[-500:] or result.stdout[-500:] or "yt-dlp failed with no output"
-            logger.error("Job %s: yt-dlp failed\nstdout: %s\nstderr: %s",
-                         job_id, result.stdout[-2000:], result.stderr[-2000:])
             with _lock:
                 _jobs[job_id]["status"] = "error"
                 _jobs[job_id]["error"] = err
